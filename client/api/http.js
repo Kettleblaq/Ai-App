@@ -1,18 +1,12 @@
-"use strict";
+// client/api/http.js
 
-/**
- * Central API client for the React app.
- * IMPORTANT: This file must NOT contain JSX.
- *
- * Uses Vite proxy by default via "/api".
- * If you set VITE_API_BASE in client/.env, it will use that instead.
- */
-
-const BASE = (import.meta?.env?.VITE_API_BASE || "/api").replace(/\/$/, "");
+const API_BASE =
+  import.meta.env.VITE_API_URL ||
+  "http://localhost:5050/api";
 
 async function request(path, options = {}) {
-  const res = await fetch(`${BASE}${path}`, {
-    credentials: "include",
+  const res = await fetch(`${API_BASE}${path}`, {
+    credentials: "include", // ✅ REQUIRED for sessions/cookies
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {}),
@@ -20,113 +14,43 @@ async function request(path, options = {}) {
     ...options,
   });
 
-  const data = await res.json().catch(() => ({}));
-
   if (!res.ok) {
-    const message = data?.error || data?.message || `Request failed (${res.status})`;
-    const err = new Error(message);
-    err.status = res.status;
-    err.data = data;
-    throw err;
+    const text = await res.text();
+    throw new Error(text || `Request failed (${res.status})`);
   }
 
-  return data;
+  return res.json();
 }
 
-export const api = {
-  // ---------- Auth ----------
-  async me() {
-    const data = await request("/auth/me", { method: "GET" });
-    return data?.user || null;
-  },
+/* ---------- AUTH ---------- */
 
-  async login(payload) {
-    const data = await request("/auth/login", {
-      method: "POST",
-      body: JSON.stringify(payload || {}),
-    });
-    return data?.user || null;
-  },
+export const login = (data) =>
+  request("/auth/login", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 
-  async signup(payload) {
-    const data = await request("/auth/signup", {
-      method: "POST",
-      body: JSON.stringify(payload || {}),
-    });
-    return data?.user || null;
-  },
+export const signup = (data) =>
+  request("/auth/signup", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 
-  async logout() {
-    return request("/auth/logout", { method: "POST" });
-  },
+export const logout = () =>
+  request("/auth/logout", {
+    method: "POST",
+  });
 
-  // ---------- Inventory ----------
-  listInventory() {
-    return request("/inventory", { method: "GET" }); // { ok, items }
-  },
+export const me = () =>
+  request("/auth/me");
 
-  addInventory(name, qty) {
-    return request("/inventory", {
-      method: "POST",
-      body: JSON.stringify({ name, qty }),
-    });
-  },
+/* ---------- OTHER APIs ---------- */
 
-  toggleInventory(id, done) {
-    return request(`/inventory/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ done }),
-    });
-  },
+export const getRecipes = () =>
+  request("/recipes");
 
-  // Alias so older UI code won't crash if it calls updateInventory(...)
-  updateInventory(id, patch) {
-    return request(`/inventory/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(patch || {}),
-    });
-  },
+export const getInventory = () =>
+  request("/inventory");
 
-  deleteInventory(id) {
-    return request(`/inventory/${id}`, { method: "DELETE" });
-  },
-
-  // ---------- Shopping List ----------
-  listShopping() {
-    return request("/shopping", { method: "GET" }); // { ok, items }
-  },
-
-  addShopping(name, qty) {
-    return request("/shopping", {
-      method: "POST",
-      body: JSON.stringify({ name, qty }),
-    });
-  },
-
-  updateShopping(id, patch) {
-    return request(`/shopping/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(patch || {}),
-    });
-  },
-
-  deleteShopping(id) {
-    return request(`/shopping/${id}`, { method: "DELETE" });
-  },
-
-  // ---------- Recipes ----------
-  listRecipes() {
-    return request("/recipes", { method: "GET" }); // { ok, recipes }
-  },
-
-  deleteRecipe(id) {
-    return request(`/recipes/${id}`, { method: "DELETE" });
-  },
-
-  generateRecipe(payload) {
-    return request("/recipes/generate", {
-      method: "POST",
-      body: JSON.stringify(payload || {}),
-    });
-  },
-};
+export const getShoppingList = () =>
+  request("/shopping");
