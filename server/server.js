@@ -4,6 +4,7 @@ require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 const session = require("express-session");
 const mongoose = require("mongoose");
 const connectMongo = require("connect-mongo");
@@ -23,61 +24,36 @@ const isProd = NODE_ENV === "production";
 // --- Robust connect-mongo import (handles default export edge cases) ---
 const MongoStore =
   (connectMongo && typeof connectMongo.create === "function" && connectMongo) ||
-  (connectMongo &&
-    connectMongo.default &&
-    typeof connectMongo.default.create === "function" &&
-    connectMongo.default) ||
+  (connectMongo && connectMongo.default && typeof connectMongo.default.create === "function" && connectMongo.default) ||
   null;
 
-/**
- * ✅ Origin allowlist:
- * - In prod, allow only your deployed frontend origin (CLIENT_ORIGIN)
- * - In dev, allow common localhost ports (http + https)
- */
 function isAllowedOrigin(origin) {
-  // Some requests (curl, server-to-server, same-origin) may have no Origin header
+  // same-origin / server-side calls (no Origin header)
   if (!origin) return true;
 
-  // allow exact configured origin (your deployed frontend)
+  // allow exact configured origin (useful in dev)
   if (origin === CLIENT_ORIGIN) return true;
 
-  // allow local dev origins (both http and https)
+  // allow common local ports (both http and https)
   const localOk =
     /^http:\/\/localhost:(517[0-9]|418[0-9]|417[0-9]|52[0-9]{2})$/.test(origin) ||
     /^http:\/\/127\.0\.0\.1:(517[0-9]|418[0-9]|417[0-9]|52[0-9]{2})$/.test(origin) ||
     /^https:\/\/localhost:(517[0-9]|418[0-9]|417[0-9]|52[0-9]{2})$/.test(origin) ||
     /^https:\/\/127\.0\.0\.1:(517[0-9]|418[0-9]|417[0-9]|52[0-9]{2})$/.test(origin);
 
-  // In production we usually do NOT want random extra origins.
-  // But allowing localOk doesn't hurt if NODE_ENV is correctly set to "production" on deploy.
-  if (!isProd && localOk) return true;
-
+  // In production, if you deploy as ONE service (Express serves React),
+  // the browser requests to /api will be same-origin, and CORS won't be needed.
+  // But keeping this check doesn't hurt.
   return localOk;
 }
 
 async function start() {
   const app = express();
 
-  /**
-   * ✅ IMPORTANT for production deployments behind a proxy (Render/Fly/NGINX/Vercel-like):
-   * Allows secure cookies to work because Express can see the real protocol (https).
-   */
+  // Needed when secure cookies behind proxy in prod (Render/Heroku/etc.)
   app.set("trust proxy", 1);
 
-  // Body parsing
-  app.use(express.json({ limit: "1mb" }));
-
-  // Basic request log (helps debug)
-  app.use((req, _res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
-    next();
-  });
-
-  /**
-   * ✅ CORS must:
-   * - echo the Origin (not "*") when credentials are used
-   * - allow credentials
-   */
+  // --- CORS (mainly for local dev when client and server are different origins) ---
   app.use(
     cors({
       origin: (origin, cb) => {
@@ -85,34 +61,27 @@ async function start() {
         return cb(new Error(`CORS blocked origin: ${origin}`));
       },
       credentials: true,
-      methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization"],
     })
   );
 
+  app.use(express.json());
 
-  // DB
+  // Basic request log
+  app.use((req, _res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+    next();
+  });
+
+  // Mongo connect
   if (MONGODB_URI) {
     await mongoose.connect(MONGODB_URI);
     console.log("✅ Mongo connected");
   } else {
-    console.warn("⚠️ Missing MONGODB_URI in server/.env");
+    console.warn("⚠️ Missing MONGODB_URI in server/.env (or Render env vars)");
   }
 
   // Sessions
   const useStore = Boolean(MONGODB_URI && MongoStore);
-
-  /**
-   * ✅ Cookie rules:
-   * - dev: sameSite "lax", secure false
-   * - prod (HTTPS): sameSite "none", secure true  (required for cross-site cookies)
-   */
-  const cookieOptions = {
-    httpOnly: true,
-    secure: isProd, // MUST be true on HTTPS deployments
-    sameSite: isProd ? "none" : "lax",
-    maxAge: 14 * 24 * 60 * 60 * 1000, // 14 days
-  };
 
   app.use(
     session({
@@ -120,7 +89,6 @@ async function start() {
       secret: SESSION_SECRET,
       resave: false,
       saveUninitialized: false,
-      rolling: true, // keeps session alive while user is active (optional but nice)
       store: useStore
         ? MongoStore.create({
             mongoUrl: MONGODB_URI,
@@ -128,7 +96,13 @@ async function start() {
             ttl: 14 * 24 * 60 * 60, // 14 days
           })
         : undefined,
-      cookie: cookieOptions,
+      cookie: {
+        httpOnly: true,
+        // For SAME-ORIGIN deployment (Express serves React), Lax is correct and reliable.
+        sameSite: "lax",
+        // In production (Render = https), secure must be true.
+        secure: isProd,
+      },
     })
   );
 
@@ -138,16 +112,18 @@ async function start() {
   app.use("/api/inventory", inventoryRoutes);
   app.use("/api/shopping", shoppingRoutes);
 
-  // Health
-  app.get("/api/health", (_req, res) =>
-    res.json({
-      ok: true,
-      env: NODE_ENV,
-      clientOrigin: CLIENT_ORIGIN,
-      mongo: Boolean(MONGODB_URI),
-      sessionStore: useStore ? "MongoStore" : "MemoryStore",
-    })
-  );
+  app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+  // --- Serve React build in production ---
+  if (isProd) {
+    const clientDistPath = path.join(__dirname, "..", "client", "dist");
+    app.use(express.static(clientDistPath));
+
+    // React Router fallback (so refresh on /login works)
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(clientDistPath, "index.html"));
+    });
+  }
 
   // Centralized error handler
   // eslint-disable-next-line no-unused-vars
