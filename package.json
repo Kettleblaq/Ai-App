@@ -1,10 +1,17 @@
 {
   "name": "ai-recipe-app",
   "private": true,
-  "workspaces": ["client", "server"],
+  "workspaces": [
+    "client",
+    "server"
+  ],
   "scripts": {
-    "dev": "npm -w server run dev & npm -w client run dev",
-    "dev:server": "npm -w server run dev",
-    "dev:client": "npm -w client run dev"
+    "dev": "npm run dev:server & npm run dev:client",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev"
+    },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "mongodb": "4.1"
   }
 }

@@ -2,10 +2,21 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+
+    <!-- Mobile / responsive -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>client</title>
+    <meta name="theme-color" content="#0b1020" />
+
+    <title>AI Recipe</title>
+
+    <!-- PWA manifest (safe even if you aren’t using SW right now) -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Optional favicon (if you don’t have one, remove this line to stop 404 spam) -->
+    <!-- Put a favicon at client/public/favicon.ico if you want this -->
+    <link rel="icon" href="/favicon.ico" />
   </head>
+
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>

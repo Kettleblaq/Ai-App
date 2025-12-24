@@ -3,7 +3,8 @@
 Thumbs.db
 .idea/
 .vscode/
-!.vscode/extensions.json
+*.swp
+*.swo
 
 # ===== Logs =====
 logs/
@@ -13,33 +14,36 @@ yarn-debug.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# ===== Env / Secrets =====
+# ===== Env files (never commit) =====
 .env
 .env.*
 !.env.example
 
-# ===== Dependencies =====
+# ===== Node / Package managers =====
 node_modules/
 **/node_modules/
+.pnpm-store/
+.yarn/
+.yarn-cache/
+.yarn/install-state.gz
 
-# ===== Build output =====
+# ===== Build outputs =====
 dist/
-build/
-coverage/
-out/
-dist-ssr/
 **/dist/
+build/
 **/build/
+dist-ssr/
+**/dist-ssr/
+
+# ===== Testing / Coverage =====
+coverage/
 **/coverage/
 
-# ===== Vite / tooling =====
+# ===== Vite / Cache =====
 .vite/
+**/.vite/
 .eslintcache
-*.local
 
-# ===== Misc =====
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+# ===== Optional: local DB/files =====
+data/
+tmp/
