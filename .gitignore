@@ -1,16 +1,13 @@
 # dependencies
 node_modules
-**/node_modules
 
 # env files
 .env
-**/.env
+.env.*
 
 # builds
-dist
-**/dist
-build
-**/build
+Client/dist/
+
 
 # logs
 npm-debug.log*
@@ -19,3 +16,6 @@ yarn-error.log*
 
 # OS
 .DS_Store
+
+#IDE
+.vscode/
