@@ -1,56 +1,28 @@
-// client/api/http.js
+import axios from "axios";
 
-const API_BASE =
-  import.meta.env.VITE_API_URL ||
-  "http://localhost:5050/api";
+// IMPORTANT:
+// - In production (Vercel), this should be SAME-ORIGIN "/api"
+//   so the browser does NOT do CORS to Render directly.
+// - In dev (localhost), also use "/api" and let Vite proxy (optional),
+//   OR change VITE_API_BASE to "http://localhost:5050" if you prefer.
+const baseURL = import.meta.env.VITE_API_BASE || "/api";
 
-async function request(path, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    credentials: "include", // ✅ REQUIRED for sessions/cookies
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-    ...options,
-  });
+const api = axios.create({
+  baseURL,
+  withCredentials: true, // required for cookie-based sessions
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `Request failed (${res.status})`);
+// Helpful debug (optional)
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    // Keep this log short so it doesn't spam your console
+    console.error("API error:", err?.response?.status, err?.config?.url);
+    return Promise.reject(err);
   }
+);
 
-  return res.json();
-}
-
-/* ---------- AUTH ---------- */
-
-export const login = (data) =>
-  request("/auth/login", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-
-export const signup = (data) =>
-  request("/auth/signup", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-
-export const logout = () =>
-  request("/auth/logout", {
-    method: "POST",
-  });
-
-export const me = () =>
-  request("/auth/me");
-
-/* ---------- OTHER APIs ---------- */
-
-export const getRecipes = () =>
-  request("/recipes");
-
-export const getInventory = () =>
-  request("/inventory");
-
-export const getShoppingList = () =>
-  request("/shopping");
+export default api;

@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://ai-app-sfx3.onrender.com/$1"
+      "destination": "https://ai-app-8ale.onrender.com/$1"
     },
     {
       "source": "/(.*)",
