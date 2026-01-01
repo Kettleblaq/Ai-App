@@ -17,9 +17,10 @@ export default function Signup() {
     e.preventDefault();
     setErr("");
 
-    if (name.trim().length < 2) return setErr("Name must be at least 2 characters");
+   // name optional (server only requires email/password)
     if (!email.includes("@")) return setErr("Enter a valid email");
     if (password.length < 6) return setErr("Password must be at least 6 characters");
+
 
     setBusy(true);
     try {
