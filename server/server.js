@@ -1,3 +1,4 @@
+// server/server.js
 require("dotenv").config();
 
 const express = require("express");
@@ -7,34 +8,47 @@ const session = require("express-session");
 const MongoStore = require("connect-mongo");
 const mongoose = require("mongoose");
 
+const authRoutes = require("./routes/auth");
+const inventoryRoutes = require("./routes/inventory");
+const recipesRoutes = require("./routes/recipes");
+const shoppingRoutes = require("./routes/shopping");
+
 const app = express();
 
-// Render is behind a proxy (secure cookies need this)
+// Render sits behind a proxy -> required for secure cookies
 app.set("trust proxy", 1);
 
+// Parsers
 app.use(express.json());
 app.use(cookieParser());
 
 // --------------------
-// CORS (mostly for local dev / non-proxied calls)
-// If you use Vercel "/api" proxy, browser calls are SAME-ORIGIN and CORS won't matter.
+// ENV helpers
 // --------------------
-const rawOrigins = process.env.CLIENT_ORIGIN || "";
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
+const SESSION_SECRET = process.env.SESSION_SECRET;
+
+const rawOrigins = process.env.CLIENT_ORIGIN || process.env.CLIENT_ORIGINS || "";
 const allowedOrigins = rawOrigins
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
 
+const isProd = process.env.NODE_ENV === "production";
+
+// --------------------
+// CORS
+// --------------------
 const corsOptions = {
   origin(origin, cb) {
-    // allow server-to-server / curl / Render health checks
     if (!origin) return cb(null, true);
 
-    // allow explicit list
     if (allowedOrigins.includes(origin)) return cb(null, true);
 
-    // allow vercel previews for your account
-    if (/^https:\/\/ai-.*-dwilliams429s-projects\.vercel\.app$/.test(origin)) return cb(null, true);
+    // allow Vercel preview deployments for your account
+    if (/^https:\/\/ai-.*-dwilliams429s-projects\.vercel\.app$/.test(origin)) {
+      return cb(null, true);
+    }
 
     return cb(new Error(`CORS blocked for origin: ${origin}`));
   },
@@ -53,38 +67,29 @@ app.get("/health", (req, res) => {
   res.status(200).json({
     ok: true,
     nodeEnv: process.env.NODE_ENV || null,
-    hasMongo: Boolean(process.env.MONGO_URI),
-    hasSessionSecret: Boolean(process.env.SESSION_SECRET),
-    clientOrigin: process.env.CLIENT_ORIGIN || null,
+    hasMongo: Boolean(MONGO_URI),
+    hasSessionSecret: Boolean(SESSION_SECRET),
+    clientOrigins: allowedOrigins,
   });
 });
 
-app.get("/", (req, res) => res.status(200).send("OK"));
-
 // --------------------
-// Start
+// Boot
 // --------------------
 async function start() {
-  const MONGO_URI = process.env.MONGO_URI;
-  const SESSION_SECRET = process.env.SESSION_SECRET;
-
   if (!MONGO_URI) {
-    console.error("❌ MONGO_URI is missing. Set it in Render env vars (and .env for local).");
+    console.error("❌ Missing MONGO URI. Set MONGO_URI or MONGODB_URI.");
     process.exit(1);
   }
   if (!SESSION_SECRET) {
-    console.error("❌ SESSION_SECRET is missing. Set it in Render env vars (and .env for local).");
+    console.error("❌ Missing SESSION_SECRET.");
     process.exit(1);
   }
 
   await mongoose.connect(MONGO_URI);
   console.log("✅ Mongo connected");
 
-  // Cookie behavior:
-  // - Production (Render/Vercel): secure cookies required, sameSite none if truly cross-site
-  // - If you use SAME-ORIGIN "/api" proxy on Vercel, sameSite=Lax is OK too.
-  const isProd = process.env.NODE_ENV === "production";
-
+  // Sessions MUST be registered before routes that use req.session
   app.use(
     session({
       name: "sid",
@@ -94,35 +99,43 @@ async function start() {
       proxy: true,
       store: MongoStore.create({
         mongoUrl: MONGO_URI,
-        ttl: 60 * 60 * 24 * 7, // 7 days
+        ttl: 60 * 60 * 24 * 7,
       }),
       cookie: {
         httpOnly: true,
-        // If you are using Vercel "/api" proxy, "lax" is enough.
-        // If you are calling Render directly from the browser, you need "none".
-        sameSite: isProd ? "lax" : "lax",
-        secure: isProd, // true on Render/https, false on localhost http
+
+        // ✅ prod: Vercel->Render is cross-site https, so None+Secure
+        // ✅ dev: localhost is http, so Lax + not secure
+        sameSite: isProd ? "none" : "lax",
+        secure: isProd,
         maxAge: 1000 * 60 * 60 * 24 * 7,
       },
     })
   );
 
-  // --------------------
-  // ROUTES (attach your real ones)
-  // --------------------
-  // Example:
-  // const authRoutes = require("./routes/auth");
-  // app.use("/auth", authRoutes);
+  // ROUTES
+  app.use("/auth", authRoutes);
+  app.use("/inventory", inventoryRoutes);
+  app.use("/recipes", recipesRoutes);
+  app.use("/shopping", shoppingRoutes);
 
-  const PORT = process.env.PORT || 10000;
+  app.get("/", (req, res) => res.status(200).send("OK"));
+
+  // error handler
+  // eslint-disable-next-line no-unused-vars
+  app.use((err, req, res, next) => {
+    console.error("❌ Server error:", err);
+    res.status(500).json({ error: err.message || "Server error" });
+  });
+
+  const PORT = process.env.PORT || 5050;
   app.listen(PORT, () => {
     console.log(`✅ Server running on port ${PORT}`);
-    console.log(`✅ NODE_ENV=${process.env.NODE_ENV}`);
-    console.log(`✅ CLIENT_ORIGIN=${process.env.CLIENT_ORIGIN}`);
+    console.log(`✅ Allowed origins: ${allowedOrigins.join(", ") || "(none set)"}`);
   });
 }
 
 start().catch((err) => {
-  console.error("❌ Server failed to start:", err);
+  console.error("❌ Failed to start:", err);
   process.exit(1);
 });

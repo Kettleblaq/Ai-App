@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+// client/context/AuthContext.jsx (only the request paths matter)
+import { createContext, useEffect, useState } from "react";
 import api from "../api/http";
 
-const AuthContext = createContext(null);
+export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -9,9 +10,9 @@ export function AuthProvider({ children }) {
 
   async function refreshMe() {
     try {
-      const res = await api.get("/auth/me"); // NOTE: becomes /api/auth/me in browser
-      setUser(res.data?.user ?? res.data ?? null);
-    } catch (e) {
+      const res = await api.get("/auth/me"); // <-- /api + /auth/me via baseURL
+      setUser(res.data.user || null);
+    } catch {
       setUser(null);
     } finally {
       setLoading(false);
@@ -19,48 +20,29 @@ export function AuthProvider({ children }) {
   }
 
   async function login(email, password) {
-    // expected backend: POST /auth/login
     const res = await api.post("/auth/login", { email, password });
     await refreshMe();
     return res.data;
   }
 
   async function signup(name, email, password) {
-    // expected backend: POST /auth/signup
     const res = await api.post("/auth/signup", { name, email, password });
     await refreshMe();
     return res.data;
   }
 
   async function logout() {
-    try {
-      await api.post("/auth/logout");
-    } finally {
-      setUser(null);
-    }
+    await api.post("/auth/logout");
+    setUser(null);
   }
 
   useEffect(() => {
     refreshMe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const value = useMemo(
-    () => ({
-      user,
-      loading,
-      refreshMe,
-      login,
-      signup,
-      logout,
-      setUser,
-    }),
-    [user, loading]
+  return (
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, refreshMe }}>
+      {children}
+    </AuthContext.Provider>
   );
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  return useContext(AuthContext);
 }
