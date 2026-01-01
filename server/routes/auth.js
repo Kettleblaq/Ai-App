@@ -1,4 +1,3 @@
-// server/routes/auth.js
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
@@ -6,10 +5,11 @@ const requireAuth = require("../middleware/requireAuth");
 
 const router = express.Router();
 
-// POST /api/auth/signup
+// POST /auth/signup  (Vercel rewrite handles /api -> Render)
 router.post("/signup", async (req, res) => {
   try {
     const { name, email, password } = req.body || {};
+
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password required" });
     }
@@ -20,22 +20,22 @@ router.post("/signup", async (req, res) => {
     const existing = await User.findOne({ email: cleanEmail });
     if (existing) return res.status(409).json({ error: "Email already in use" });
 
-    const passwordHash = await bcrypt.hash(String(password), 10);
+    const passwordHash = await bcrypt.hash(password, 10);
 
     const user = await User.create({
-      name: cleanName, // ✅ store it
+      name: cleanName,
       email: cleanEmail,
-      passwordHash,
+      passwordHash
     });
 
-    // create session
+    // session
     req.session.userId = user._id.toString();
     req.session.email = user.email;
-    req.session.name = user.name; // ✅ keep it in session too
+    req.session.name = user.name;
 
     return res.status(201).json({
       ok: true,
-      user: { id: user._id, email: user.email, name: user.name },
+      user: { id: user._id, email: user.email, name: user.name }
     });
   } catch (e) {
     console.error("signup error:", e);
@@ -43,7 +43,7 @@ router.post("/signup", async (req, res) => {
   }
 });
 
-// POST /api/auth/login
+// POST /auth/login
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body || {};
@@ -54,16 +54,16 @@ router.post("/login", async (req, res) => {
     const user = await User.findOne({ email: cleanEmail });
     if (!user) return res.status(401).json({ error: "Invalid credentials" });
 
-    const ok = await bcrypt.compare(String(password), user.passwordHash);
+    const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) return res.status(401).json({ error: "Invalid credentials" });
 
     req.session.userId = user._id.toString();
     req.session.email = user.email;
-    req.session.name = user.name || ""; // ✅
+    req.session.name = user.name;
 
     return res.json({
       ok: true,
-      user: { id: user._id, email: user.email, name: user.name || "" },
+      user: { id: user._id, email: user.email, name: user.name }
     });
   } catch (e) {
     console.error("login error:", e);
@@ -71,7 +71,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// POST /api/auth/logout
+// POST /auth/logout
 router.post("/logout", (req, res) => {
   req.session.destroy(() => {
     res.clearCookie("sid");
@@ -79,15 +79,15 @@ router.post("/logout", (req, res) => {
   });
 });
 
-// GET /api/auth/me  (auth proof)
-router.get("/me", requireAuth, async (req, res) => {
+// GET /auth/me
+router.get("/me", requireAuth, (req, res) => {
   return res.json({
     ok: true,
     user: {
       id: req.session.userId,
       email: req.session.email,
-      name: req.session.name || "",
-    },
+      name: req.session.name || ""
+    }
   });
 });
 

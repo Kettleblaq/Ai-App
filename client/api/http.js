@@ -1,13 +1,12 @@
-// client/api/http.js
 import axios from "axios";
 
-// Always call "/api" from the client.
-// - DEV: Vite proxy forwards /api/* -> http://localhost:5050/*
-// - PROD: Vercel rewrites forward /api/* -> Render
+// Default to Vercel rewrite proxy
+const baseURL = import.meta.env.VITE_API_BASE || "/api";
+
 const api = axios.create({
-  baseURL: "/api",
+  baseURL,
   withCredentials: true,
-  headers: { "Content-Type": "application/json" },
+  headers: { "Content-Type": "application/json" }
 });
 
 export default api;
