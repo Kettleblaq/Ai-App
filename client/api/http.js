@@ -1,24 +1,32 @@
 // client/api/http.js
 import axios from "axios";
 
-// In production, call Render directly.
-// In dev, call your local server.
-const API_ORIGIN = import.meta.env.PROD
-  ? import.meta.env.VITE_API_URL // e.g. "https://ai-app-8ale.onrender.com"
-  : (import.meta.env.VITE_API_URL || "http://localhost:5050");
+const isProd = import.meta.env.PROD;
 
-// Safety: remove trailing slash
-const origin = String(API_ORIGIN || "").replace(/\/+$/, "");
+// IMPORTANT:
+// Set VITE_API_URL in Vercel Production to: https://ai-app-8ale.onrender.com
+const envUrl = import.meta.env.VITE_API_URL;
+
+// Default fallback:
+// - dev: local server
+// - prod: Render (fallback in case env var missing)
+const API_ORIGIN = isProd
+  ? (envUrl || "https://ai-app-8ale.onrender.com")
+  : (envUrl || "http://localhost:5050");
+
+const origin = String(API_ORIGIN).replace(/\/+$/, "");
+
+// This should be https://ai-app-8ale.onrender.com/api in prod
+const baseURL = `${origin}/api`;
+
+console.log("[http] PROD?", isProd, "| VITE_API_URL:", envUrl, "| baseURL:", baseURL);
 
 const api = axios.create({
-  baseURL: `${origin}/api`,
+  baseURL,
   withCredentials: true,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  headers: { "Content-Type": "application/json" },
 });
 
-// Debug logging (keep while deploying; remove later)
 api.interceptors.request.use((config) => {
   const method = (config.method || "GET").toUpperCase();
   const url = `${config.baseURL || ""}${config.url || ""}`;
