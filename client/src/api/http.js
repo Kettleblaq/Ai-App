@@ -4,7 +4,7 @@
 
 const BASE =
   (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_BASE) ||
-  "http://localhost:5050/api";
+  "http://ai-app-delta-lac.vercel.app/api";
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, {
