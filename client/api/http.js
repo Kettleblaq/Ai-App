@@ -8,8 +8,8 @@ const isProd = import.meta.env.PROD;
 const envUrl = import.meta.env.VITE_API_URL;
 
 const API_ORIGIN = isProd
-  ? (envUrl || "https://ai-app-bcc0.onrender.com/")
-  : (envUrl || "https://ai-app-bcc0.onrender.com/");
+  ? (envUrl || "https://ai-app-bcc0.onrender.com")
+  : (envUrl || "https://ai-app-bcc0.onrender.com");
 
 const origin = String(API_ORIGIN).replace(/\/+$/, "");
 const baseURL = `${origin}/api`;
