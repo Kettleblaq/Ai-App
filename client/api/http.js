@@ -4,11 +4,11 @@ import axios from "axios";
 const isProd = import.meta.env.PROD;
 
 // Set this in Vercel Production:
-// VITE_API_URL = https://ai-app-8ale.onrender.com
+// VITE_API_URL = https://ai-app-bcc0.onrender.com/
 const envUrl = import.meta.env.VITE_API_URL;
 
 const API_ORIGIN = isProd
-  ? (envUrl || "https://ai-app-8ale.onrender.com")
+  ? (envUrl || "https://ai-app-bcc0.onrender.com/")
   : (envUrl || "http://localhost:5050");
 
 const origin = String(API_ORIGIN).replace(/\/+$/, "");
