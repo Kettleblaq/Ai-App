@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import GlassCard from "../components/GlassCard";
 
-const BASE = "http://localhost:5050/api";
+const BASE = "http://ai-app-delta-lac.vercel.app/api";
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, {
