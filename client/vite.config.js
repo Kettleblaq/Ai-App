@@ -8,7 +8,7 @@ export default defineConfig({
     proxy: {
       // Anything hitting /api on the Vite dev server will be forwarded to Express
       "/api": {
-        target: "http://localhost:5050",
+        target: "https://ai-app-bcc0.onrender.com/",
         changeOrigin: true,
         secure: false,
         // /api/auth/login -> http://localhost:5050/auth/login
