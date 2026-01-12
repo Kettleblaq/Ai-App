@@ -40,6 +40,8 @@ export const api = {
   },
 
   async login(payload) {
+    console.log('Testing')
+    console.log(payload)
     const data = await request("/auth/login", {
       method: "POST",
       body: JSON.stringify(payload || {}),
